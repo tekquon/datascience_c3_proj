@@ -1,5 +1,7 @@
 ## Step 0: Set up libraries, get Zip Data File and Unzip
 library(dplyr)
+library(stringr)
+library(knitr)
 url <- "https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip"
 if(!file.exists("./data")) {
   dir.create("./data")
@@ -58,3 +60,25 @@ tidy <- data %>% group_by(User_ID, Activity_Name, Activity_ID, type) %>% summari
 ## Step 9: Writes tidy data set to an external file
 setwd("../../")
 write.table(tidy, file="./q5.txt", row.name = FALSE)
+
+##Step 10: Create the Codebook
+cb <- data.frame(VariableName = names(tidy))
+cb$MeasurementType[5:length(cb)] <- ifelse(grepl("mean()", cb$VariableName[5:length(cb)], "mean"), "mean", "standard deviation")
+cb$MeasurementType[1:4] <- "Description"
+j <- 1
+for(i in lapply(tidy, class))
+{
+  cb$DataType[j] <- i[[1]]
+  j = j+1
+}
+cb$Axis <- ifelse(grepl("-X", cb$VariableName), "X", ifelse(grepl("-Y", cb$VariableName), "Y", ifelse(grepl("-Z", cb$VariableName), "Z", "N/A")))
+cb$TimeFreq <- ifelse(substr(cb$VariableName, 1,1) == "t", "time", ifelse(substr(cb$VariableName, 1,1) == "f", "frequency domain signals", "N/A"))
+cb$Description[5:length(cb$VariableName)] <- str_extract(substr(cb$VariableName[5:length(cb$VariableName)],2,nchar(as.character(cb$VariableName[5:length(cb$VariableName)]))), "^[^-]+")
+cb$Description[1] <- "ID Number for the User"
+cb$Description[2] <- "Name of the Activity User Was Engaged for Observations"
+cb$Description[3] <- "ID Number of the Activity"
+cb$Description[4] <- "Type of user: either train or test"
+cb$Methodology[5:length(cb$Methodology)] <- "Mean of this variable, grouped by the 'Description' variables" 
+cb$Methodology[1:4] <- "Descriptor that the variables have been grouped by"
+cb_output <- kable(cb, format = "markdown")
+write(cb_output, "CodeBook.md")
